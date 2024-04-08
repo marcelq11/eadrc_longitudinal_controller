@@ -4,15 +4,36 @@
   <name>eadrc_longitudinal_controller</name>
   <version>1.0.0</version>
   <description>EADRC_longitudinal_controller</description>
-  <maintainer email="marcelq38@gmail.com">Marcel_Chudecki</maintainer>
+
+  <maintainer email="marcelq38@gmail.com">Marcel Chudecki</maintainer>
+  <maintainer email="karol3129@gmail.com">Karol Debski</maintainer>
+
   <license>Apache License 2.0</license>
 
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
   <buildtool_depend>autoware_cmake</buildtool_depend>
 
+
+  <depend>autoware_adapi_v1_msgs</depend>
+  <depend>autoware_auto_control_msgs</depend>
+  <depend>autoware_auto_planning_msgs</depend>
+  <depend>autoware_auto_vehicle_msgs</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>diagnostic_updater</depend>
+  <depend>eigen</depend>
+  <depend>geometry_msgs</depend>
+  <depend>interpolation</depend>
   <depend>launch_ros</depend>
+  <depend>motion_utils</depend>
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2</depend>
+  <depend>tf2_ros</depend>
+  <depend>tier4_autoware_utils</depend>
+  <depend>tier4_debug_msgs</depend>
+  <depend>trajectory_follower_base</depend>
+  <depend>vehicle_info_util</depend>
 
   <test_depend>ament_cmake_ros</test_depend>
   <test_depend>ament_lint_auto</test_depend>
