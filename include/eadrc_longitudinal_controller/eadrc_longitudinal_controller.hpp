@@ -25,9 +25,17 @@ namespace eadrc_longitudinal_controller
 
 class EADRC_LONGITUDINAL_CONTROLLER_PUBLIC EadrcLongitudinalController
 {
-public:
+public: 
   EadrcLongitudinalController();
-  int64_t foo(int64_t bar) const;
+  
+  void calculateOuterLoopUStar();
+  void calculateInternalLoopCompensationTotalDisturbance();
+  void saturation();
+
+private:
+  int16_t m_saturationValueUpper;
+  int16_t m_saturationValueLower;
+
 };
 
 }  // namespace eadrc_longitudinal_controller

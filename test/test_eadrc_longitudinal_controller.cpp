@@ -15,9 +15,9 @@
 #include "gtest/gtest.h"
 #include "eadrc_longitudinal_controller/eadrc_longitudinal_controller.hpp"
 
-TEST(TestEadrcLongitudinalController, TestHello) {
-  std::unique_ptr<eadrc_longitudinal_controller::EadrcLongitudinalController> eadrc_longitudinal_controller_ =
-    std::make_unique<eadrc_longitudinal_controller::EadrcLongitudinalController>();
-  auto result = eadrc_longitudinal_controller_->foo(999);
-  EXPECT_EQ(result, 999);
-}
+// TEST(TestEadrcLongitudinalController, TestHello) {
+//   std::unique_ptr<eadrc_longitudinal_controller::EadrcLongitudinalController> eadrc_longitudinal_controller_ =
+//     std::make_unique<eadrc_longitudinal_controller::EadrcLongitudinalController>();
+//   auto result = eadrc_longitudinal_controller_->foo(999);
+//   EXPECT_EQ(result, 999);
+// }
