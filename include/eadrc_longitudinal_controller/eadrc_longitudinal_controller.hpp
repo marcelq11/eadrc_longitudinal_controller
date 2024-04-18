@@ -20,8 +20,46 @@
 #include "eadrc_longitudinal_controller/visibility_control.hpp"
 
 
-namespace eadrc_longitudinal_controller
+#include "diagnostic_updater/diagnostic_updater.hpp"
+#include "eadrc_longitudinal_controller/ESO.hpp"
+#include "eadrc_longitudinal_controller/longitudinal_controller_utils.hpp"
+#include "rclcpp/rclcpp.hpp"
+#include "tf2/utils.h"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
+#include "tier4_autoware_utils/ros/marker_helper.hpp"
+#include "trajectory_follower_base/longitudinal_controller_base.hpp"
+#include "vehicle_info_util/vehicle_info_util.hpp"
+
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+
+#include "autoware_adapi_v1_msgs/msg/operation_mode_state.hpp"
+#include "autoware_auto_control_msgs/msg/longitudinal_command.hpp"
+#include "autoware_auto_planning_msgs/msg/trajectory.hpp"
+#include "autoware_auto_vehicle_msgs/msg/vehicle_odometry.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "nav_msgs/msg/odometry.hpp"
+#include "tf2_msgs/msg/tf_message.hpp"
+#include "tier4_debug_msgs/msg/float32_multi_array_stamped.hpp"
+#include "visualization_msgs/msg/marker.hpp"
+
+#include <deque>
+#include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace autoware::motion::control::eadrc_longitudinal_controller
 {
+using autoware_adapi_v1_msgs::msg::OperationModeState;
+using tier4_autoware_utils::createDefaultMarker;
+using tier4_autoware_utils::createMarkerColor;
+using tier4_autoware_utils::createMarkerScale;
+using visualization_msgs::msg::Marker;
+
+namespace trajectory_follower = ::autoware::motion::control::trajectory_follower;
 
 class EadrcLongitudinalController : public trajectory_follower::LongitudinalControllerBase
 {
@@ -37,6 +75,18 @@ private:
   int16_t m_saturationValueLower;
   };
 
+  struct StateAfterDelay
+  {
+    StateAfterDelay(const double velocity, const double acceleration, const double distance)
+    : vel(velocity), acc(acceleration), running_distance(distance)
+    {
+    }
+    double vel{0.0};
+    double acc{0.0};
+    double running_distance{0.0};
+  };
+  enum class Shift { Forward = 0, Reverse };
+
   struct ControlData
   {
     bool is_far_from_trajectory{false};
@@ -50,6 +100,18 @@ private:
     double slope_angle{0.0};
     double dt{0.0};
   };
+
+  // pointers for ros topic
+  nav_msgs::msg::Odometry m_current_kinematic_state;
+  geometry_msgs::msg::AccelWithCovarianceStamped m_current_accel;
+  autoware_auto_planning_msgs::msg::Trajectory m_trajectory;
+  OperationModeState m_current_operation_mode;
+
+  // drive
+  PIDController m_eadrc_vel;
+
+  // buffer of send command
+  std::vector<autoware_auto_control_msgs::msg::LongitudinalCommand> m_ctrl_cmd_vec;
 
   bool isReady(const trajectory_follower::InputData & input_data) override;
 
@@ -101,6 +163,23 @@ private:
   calcInterpolatedTrajPointAndSegment(
     const autoware_auto_planning_msgs::msg::Trajectory & traj,
     const geometry_msgs::msg::Pose & pose) const;
+  
+  /**
+   * @brief calculate predicted velocity after time delay based on past control commands
+   * @param [in] current_motion current velocity and acceleration of the vehicle
+   * @param [in] delay_compensation_time predicted time delay
+   */
+  StateAfterDelay predictedStateAfterDelay(
+    const Motion current_motion, const double delay_compensation_time) const;
+
+
+  /**
+   * @brief calculate direction (forward or backward) that vehicle moves
+   * @param [in] control_data data for control calculation
+   */
+  enum Shift getCurrentShift(const ControlData & control_data) const;
+  
+  
 
 
 
