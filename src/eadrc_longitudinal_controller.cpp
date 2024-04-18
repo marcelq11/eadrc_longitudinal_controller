@@ -15,6 +15,7 @@
 #include "eadrc_longitudinal_controller/eadrc_longitudinal_controller.hpp"
 
 #include <iostream>
+#include <Eigen/Eigen>
 
 namespace eadrc_longitudinal_controller
 {
