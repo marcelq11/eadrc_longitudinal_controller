@@ -8,7 +8,9 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   include/eadrc_longitudinal_controller/eadrc_longitudinal_controller.hpp
   include/eadrc_longitudinal_controller/visibility_control.hpp
   src/eadrc_longitudinal_controller.cpp
-)
+  src/ESO.cpp
+  src/longitudinal_controller_utils.cpp
+  )
 
 ament_auto_add_library(${PROJECT_NAME}_node SHARED
   include/eadrc_longitudinal_controller/eadrc_longitudinal_controller_node.hpp
