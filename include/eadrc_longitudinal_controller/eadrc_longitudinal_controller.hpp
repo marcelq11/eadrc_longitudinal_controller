@@ -107,6 +107,19 @@ private:
   autoware_auto_planning_msgs::msg::Trajectory m_trajectory;
   OperationModeState m_current_operation_mode;
 
+  // slope compensation
+  enum class SlopeSource { RAW_PITCH = 0, TRAJECTORY_PITCH, TRAJECTORY_ADAPTIVE };
+  SlopeSource m_slope_source{SlopeSource::RAW_PITCH};
+  double m_adaptive_trajectory_velocity_th;
+  std::shared_ptr<LowpassFilter1d> m_lpf_pitch{nullptr};
+  double m_max_pitch_rad;
+  double m_min_pitch_rad;
+
+  // debug values
+  DebugValues m_debug_values;
+
+  std::shared_ptr<rclcpp::Time> m_last_running_time{std::make_shared<rclcpp::Time>(clock_->now())};
+
   // drive
   PIDController m_eadrc_vel;
 
@@ -179,6 +192,20 @@ private:
    */
   enum Shift getCurrentShift(const ControlData & control_data) const;
   
+
+  /**
+   * @brief update variables for debugging about pitch
+   * @param [in] pitch current pitch of the vehicle (filtered)
+   * @param [in] traj_pitch current trajectory pitch
+   * @param [in] raw_pitch current raw pitch of the vehicle (unfiltered)
+   */
+  void updatePitchDebugValues(const double pitch, const double traj_pitch, const double raw_pitch);
+
+  /**
+   * @brief calculate control command in emergency state
+   * @param [in] dt time between previous and current one
+   */
+  Motion calcEmergencyCtrlCmd(const double dt) const;
   
 
 
