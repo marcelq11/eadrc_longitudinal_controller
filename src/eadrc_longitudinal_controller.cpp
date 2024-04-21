@@ -596,13 +596,8 @@ double EadrcLongitudinalController::applyVelocityFeedback(const ControlData & co
 
   const double error_vel_filtered = m_lpf_vel_error->filter(diff_vel);
 
-
-  //TODO chceck what is pid_contributions 
-
-
-  std::vector<double> pid_contributions(3);
   const double pid_acc =
-    m_pid_vel.calculate(error_vel_filtered, control_data.dt, enable_integration, pid_contributions);
+    m_pid_vel.calculate(error_vel_filtered, control_data.dt);
 
   // Feedforward scaling:
   // This is for the coordinate conversion where feedforward is applied, from Time to Arclength.
@@ -620,13 +615,125 @@ double EadrcLongitudinalController::applyVelocityFeedback(const ControlData & co
 
   m_debug_values.setValues(DebugValues::TYPE::ACC_CMD_PID_APPLIED, feedback_acc);
   m_debug_values.setValues(DebugValues::TYPE::ERROR_VEL_FILTERED, error_vel_filtered);
-  m_debug_values.setValues(DebugValues::TYPE::ACC_CMD_FB_P_CONTRIBUTION, pid_contributions.at(0));
-  m_debug_values.setValues(DebugValues::TYPE::ACC_CMD_FB_I_CONTRIBUTION, pid_contributions.at(1));
-  m_debug_values.setValues(DebugValues::TYPE::ACC_CMD_FB_D_CONTRIBUTION, pid_contributions.at(2));
   m_debug_values.setValues(DebugValues::TYPE::FF_SCALE, ff_scale);
   m_debug_values.setValues(DebugValues::TYPE::ACC_CMD_FF, ff_acc);
 
   return feedback_acc;
+}
+
+EadrcLongitudinalController::Motion EadrcLongitudinalController::keepBrakeBeforeStop(
+  const ControlData & control_data, const Motion & target_motion, const size_t nearest_idx) const
+{
+  Motion output_motion = target_motion;
+
+  if (m_enable_brake_keeping_before_stop == false) {
+    return output_motion;
+  }
+  const auto traj = control_data.interpolated_traj;
+
+  const auto stop_idx = motion_utils::searchZeroVelocityIndex(traj.points);
+  if (!stop_idx) {
+    return output_motion;
+  }
+
+  double min_acc_before_stop = std::numeric_limits<double>::max();
+  size_t min_acc_idx = std::numeric_limits<size_t>::max();
+  for (int i = static_cast<int>(*stop_idx); i >= 0; --i) {
+    const auto ui = static_cast<size_t>(i);
+    if (traj.points.at(ui).acceleration_mps2 > static_cast<float>(min_acc_before_stop)) {
+      break;
+    }
+    min_acc_before_stop = traj.points.at(ui).acceleration_mps2;
+    min_acc_idx = ui;
+  }
+
+  const double brake_keeping_acc = std::max(m_brake_keeping_acc, min_acc_before_stop);
+  if (nearest_idx >= min_acc_idx && target_motion.acc > brake_keeping_acc) {
+    output_motion.acc = brake_keeping_acc;
+  }
+
+  return output_motion;
+}
+
+void EadrcLongitudinalController::storeAccelCmd(const double accel)
+{
+  if (m_control_state == ControlState::DRIVE) {
+    // convert format
+    autoware_auto_control_msgs::msg::LongitudinalCommand cmd;
+    cmd.stamp = clock_->now();
+    cmd.acceleration = static_cast<decltype(cmd.acceleration)>(accel);
+
+    // store published ctrl cmd
+    m_ctrl_cmd_vec.emplace_back(cmd);
+  } else {
+    // reset command
+    m_ctrl_cmd_vec.clear();
+  }
+
+  // remove unused ctrl cmd
+  if (m_ctrl_cmd_vec.size() <= 2) {
+    return;
+  }
+  if ((clock_->now() - m_ctrl_cmd_vec.at(1).stamp).seconds() > m_delay_compensation_time) {
+    m_ctrl_cmd_vec.erase(m_ctrl_cmd_vec.begin());
+  }
+}
+
+double EadrcLongitudinalController::applySlopeCompensation(
+  const double input_acc, const double pitch, const Shift shift) const
+{
+  if (!m_enable_slope_compensation) {
+    return input_acc;
+  }
+  const double pitch_limited = std::min(std::max(pitch, m_min_pitch_rad), m_max_pitch_rad);
+
+  // Acceleration command is always positive independent of direction (= shift) when car is running
+  double sign = (shift == Shift::Forward) ? 1.0 : (shift == Shift::Reverse ? -1.0 : 0);
+  double compensated_acc = input_acc + sign * 9.81 * std::sin(pitch_limited);
+  return compensated_acc;
+}
+
+double EadrcLongitudinalController::calcFilteredAcc(
+  const double raw_acc, const ControlData & control_data)
+{
+  const double acc_max_filtered = std::clamp(raw_acc, m_min_acc, m_max_acc);
+  m_debug_values.setValues(DebugValues::TYPE::ACC_CMD_ACC_LIMITED, acc_max_filtered);
+
+  // store ctrl cmd without slope filter
+  storeAccelCmd(acc_max_filtered);
+
+  // apply slope compensation
+  const double acc_slope_filtered =
+    applySlopeCompensation(acc_max_filtered, control_data.slope_angle, control_data.shift);
+  m_debug_values.setValues(DebugValues::TYPE::ACC_CMD_SLOPE_APPLIED, acc_slope_filtered);
+
+  // This jerk filter must be applied after slope compensation
+  const double acc_jerk_filtered = longitudinal_utils::applyDiffLimitFilter(
+    acc_slope_filtered, m_prev_ctrl_cmd.acc, control_data.dt, m_max_jerk, m_min_jerk);
+  m_debug_values.setValues(DebugValues::TYPE::ACC_CMD_JERK_LIMITED, acc_jerk_filtered);
+
+  return acc_jerk_filtered;
+}
+
+void EadrcLongitudinalController::updateDebugVelAcc(const ControlData & control_data)
+{
+  m_debug_values.setValues(DebugValues::TYPE::CURRENT_VEL, control_data.current_motion.vel);
+  m_debug_values.setValues(
+    DebugValues::TYPE::TARGET_VEL,
+    control_data.interpolated_traj.points.at(control_data.target_idx).longitudinal_velocity_mps);
+  m_debug_values.setValues(
+    DebugValues::TYPE::TARGET_ACC,
+    control_data.interpolated_traj.points.at(control_data.target_idx).acceleration_mps2);
+  m_debug_values.setValues(
+    DebugValues::TYPE::NEAREST_VEL,
+    control_data.interpolated_traj.points.at(control_data.nearest_idx).longitudinal_velocity_mps);
+  m_debug_values.setValues(
+    DebugValues::TYPE::NEAREST_ACC,
+    control_data.interpolated_traj.points.at(control_data.nearest_idx).acceleration_mps2);
+  m_debug_values.setValues(
+    DebugValues::TYPE::ERROR_VEL,
+    control_data.interpolated_traj.points.at(control_data.nearest_idx).longitudinal_velocity_mps -
+      control_data.current_motion.vel);
 }
 
 EadrcLongitudinalController::Motion EadrcLongitudinalController::calcCtrlCmd(
@@ -720,7 +827,16 @@ trajectory_follower::LongitudinalOutput EadrcLongitudinalController::run(
   // calculate control command
   const Motion ctrl_cmd = calcCtrlCmd(control_data);
 
-  
+  // publish control command
+  const auto cmd_msg = createCtrlCmdMsg(ctrl_cmd, control_data.current_motion.vel);
+  trajectory_follower::LongitudinalOutput output;
+  output.control_cmd = cmd_msg;
+
+  // publish debug data
+  publishDebugData(ctrl_cmd, control_data);
+
+  // diagnostic
+  diagnostic_updater_.force_update();
 
   return output;
 }

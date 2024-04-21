@@ -118,6 +118,9 @@ private:
   // debug values
   DebugValues m_debug_values;
 
+  // smooth stop
+  SmoothStop m_smooth_stop;
+
   std::shared_ptr<rclcpp::Time> m_last_running_time{std::make_shared<rclcpp::Time>(clock_->now())};
 
   // drive
@@ -241,6 +244,45 @@ private:
   double applyVelocityFeedback(const ControlData & control_data);
 
   double getTimeUnderControl();
+
+  /**
+   * @brief keep target motion acceleration negative before stop
+   * @param [in] traj reference trajectory
+   * @param [in] motion delay compensated target motion
+   */
+  Motion keepBrakeBeforeStop(
+    const ControlData & control_data, const Motion & target_motion, const size_t nearest_idx) const;
+
+  /**
+   * @brief filter acceleration command with limitation of acceleration and jerk, and slope
+   * compensation
+   * @param [in] raw_acc acceleration before filtered
+   * @param [in] control_data data for control calculation
+   */
+  double calcFilteredAcc(const double raw_acc, const ControlData & control_data);
+
+  /**
+   * @brief store acceleration command before slope compensation
+   * @param [in] accel command before slope compensation
+   */
+  void storeAccelCmd(const double accel);
+
+  /**
+   * @brief add acceleration to compensate for slope
+   * @param [in] acc acceleration before slope compensation
+   * @param [in] pitch pitch angle (upward is negative)
+   * @param [in] shift direction that vehicle move (forward or backward)
+   */
+  double applySlopeCompensation(const double acc, const double pitch, const Shift shift) const;
+
+  /**
+   * @brief update variables for velocity and acceleration
+   * @param [in] ctrl_cmd latest calculated control command
+   * @param [in] control_data data for control calculation
+   */
+  void updateDebugVelAcc(const ControlData & control_data);
+
+
 
   
 
