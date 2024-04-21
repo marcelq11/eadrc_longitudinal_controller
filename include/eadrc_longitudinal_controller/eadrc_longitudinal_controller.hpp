@@ -206,6 +206,42 @@ private:
    * @param [in] dt time between previous and current one
    */
   Motion calcEmergencyCtrlCmd(const double dt) const;
+
+    /**
+   * @brief publish control command
+   * @param [in] ctrl_cmd calculated control command to control velocity
+   * @param [in] current_vel current velocity of the vehicle
+   */
+  autoware_auto_control_msgs::msg::LongitudinalCommand createCtrlCmdMsg(
+    const Motion & ctrl_cmd, const double & current_vel);
+
+  /**
+   * @brief publish debug data
+   * @param [in] ctrl_cmd calculated control command to control velocity
+   * @param [in] control_data data for control calculation
+   */
+  void publishDebugData(const Motion & ctrl_cmd, const ControlData & control_data);
+
+  /**
+   * @brief update control state according to the current situation
+   * @param [in] control_data control data
+   */
+  void updateControlState(const ControlData & control_data);
+
+  /**
+   * @brief calculate control command based on the current control state
+   * @param [in] control_data control data
+   */
+  Motion calcCtrlCmd(const ControlData & control_data);
+
+  /**
+   * @brief calculate velocity feedback with feed forward and pid controller
+   * @param [in] control_data data for control calculation
+   */
+  double applyVelocityFeedback(const ControlData & control_data);
+
+  double getTimeUnderControl();
+
   
 
 

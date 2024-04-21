@@ -571,7 +571,7 @@ double EadrcLongitudinalController::getTimeUnderControl()
   return (clock_->now() - *m_under_control_starting_time).seconds();
 }
 
-double PidLongitudinalController::applyVelocityFeedback(const ControlData & control_data)
+double EadrcLongitudinalController::applyVelocityFeedback(const ControlData & control_data)
 {
   // NOTE: Acceleration command is always positive even if the ego drives backward.
   const double vel_sign = (control_data.shift == Shift::Forward)
