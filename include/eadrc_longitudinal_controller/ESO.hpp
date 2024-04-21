@@ -1,18 +1,23 @@
+#include <Eigen/Eigen>
+
 namespace eadrc_longitudinal_controller
 {
 
 class ESO
 {
 public:
-    ESO(double dt_, uint16_t orderOfESO_, double estimatedGainOfSystem_, uint32_t bandwidthOfESO_);
+    ESO(double dt, double estimatedGainOfSystem, uint32_t bandwidthOfESO);
     void calculateStateOfESO(double error, double controlSignal);
 
 private:
-    uint16_t m_orderOfESO;
-    double m_estimatedGainOfSystem;
-    uint32_t m_bandwidthOfESO;
-    double m_dt;
-    Eigen::VectorXd m_stateVector(3);//ile???
+    Eigen::Matrix2d m_A;
+    Eigen::RowVector2d m_B(2);
+    Eigen::RowVector2d m_C;
+    Eigen::RowVector2d m_L(2);
+    Eigen::VectorXd m_stateVectorNew(2);
+    Eigen::VectorXd m_stateVectorOld(2);
+    double m_oldControlValue;
+    double m_oldLogitudinalSpeedValue;
 }
 
 
