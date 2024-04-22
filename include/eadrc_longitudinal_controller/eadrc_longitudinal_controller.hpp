@@ -70,9 +70,20 @@ public:
   void calculateInternalLoopCompensationTotalDisturbance();
   void saturation();
 
+
+  bool isReady(const trajectory_follower::InputData & input_data) override;
+
+  trajectory_follower::LongitudinalOutput run(
+    trajectory_follower::InputData const & input_data) override;
+
+
+  double EadrcLongitudinalController::calculateControlSignal(const double error, const double dt);
+
 private:
   int16_t m_saturationValueUpper;
   int16_t m_saturationValueLower;
+  ESO* obserwer;
+
   };
 
   struct StateAfterDelay
@@ -123,16 +134,8 @@ private:
 
   std::shared_ptr<rclcpp::Time> m_last_running_time{std::make_shared<rclcpp::Time>(clock_->now())};
 
-  // drive
-  PIDController m_eadrc_vel;
-
   // buffer of send command
   std::vector<autoware_auto_control_msgs::msg::LongitudinalCommand> m_ctrl_cmd_vec;
-
-  bool isReady(const trajectory_follower::InputData & input_data) override;
-
-  trajectory_follower::LongitudinalOutput run(
-    trajectory_follower::InputData const & input_data) override;
 
   /**
    * @brief set reference trajectory with received message

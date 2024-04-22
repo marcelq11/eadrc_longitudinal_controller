@@ -6,7 +6,7 @@
 namespace eadrc_longitudinal_controller
 {
 
-    ESO::ESO(double dt, double estimatedGainOfSystem, uint32_t bandwidthOfESO)//TODO fill after : preinit
+    ESO::ESO(double estimatedGainOfSystem, uint32_t bandwidthOfESO)//TODO fill after : preinit
     {
         m_A << 0, 1,
              0, 0;
@@ -25,8 +25,9 @@ namespace eadrc_longitudinal_controller
             m_L << L1Value, L2Value;
         }
 
-        m_stateVectorOld << 0, 0;
-        m_stateVectorNew << 0, 0;
+        m_lastControlSignal = 0;
+        m_lastLogitudinalError = 0;
+        m_lastStateVector << 0, 0;
     }
 
     bool calculateGainsOfLVector(double* p_L1Value, double* p_L2Value, double bandwidthOfESO)
@@ -48,16 +49,19 @@ namespace eadrc_longitudinal_controller
         return true;
     }
 
-    void ESO::calculateStateOfESO(double error, double controlSignal)
+    Eigen::RowVector2d ESO::calculateStateOfESO(double error, const double dt, double controlSignal)
     {
-        double lastMeasuredSpeed = 0; // TODO fill it
-        double dt = 0; // TODO fill it
-
         Eigen::Matrix2d I;
         I << 1, 0,
              0, 1;
 
-        m_stateVectorNew = (m_A*dt-dt*m_L*m_C+I)*m_stateVectorOld+dt*m_B*controlSignal+dt*m_L*error;
+        Eigen::RowVector2d stateVector(2) = (m_A*dt-dt*m_L*m_C+I)*m_lastStateVector+dt*m_B*m_lastControlSignal+dt*m_L*error;
+
+        m_lastControlSignal = controlSignal;
+        m_lastLogitudinalError = error;
+        m_lastStateVector = m_StateVector
+
+        return stateVector;
     }
 
 }  // namespace eadrc_longitudinal_controller

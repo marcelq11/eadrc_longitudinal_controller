@@ -44,18 +44,6 @@ EadrcLongitudinalController::EadrcLongitudinalController(rclcpp::Node & node)
 
 }
 
-int64_t EadrcLongitudinalController::foo(int64_t bar) const
-{
-  std::cout << "Hello World, " << bar << std::endl;
-  return bar;
-}
-
-bool EadrcLongitudinalController::isReady(
-  [[maybe_unused]] const trajectory_follower::InputData & input_data)
-{
-  return true;
-}
-
 void EadrcLongitudinalController::setTrajectory(
   const autoware_auto_planning_msgs::msg::Trajectory & msg)
 {
@@ -571,6 +559,13 @@ double EadrcLongitudinalController::getTimeUnderControl()
   return (clock_->now() - *m_under_control_starting_time).seconds();
 }
 
+double EadrcLongitudinalController::calculateControlSignal(const double error, const double dt)
+{
+  Eigen::RowVector2d stateVector = obserwer->calculateStateOfESO(error, dt, controlSignal);
+
+  double controlSignal = 
+}
+
 double EadrcLongitudinalController::applyVelocityFeedback(const ControlData & control_data)
 {
   // NOTE: Acceleration command is always positive even if the ego drives backward.
@@ -596,29 +591,31 @@ double EadrcLongitudinalController::applyVelocityFeedback(const ControlData & co
 
   const double error_vel_filtered = m_lpf_vel_error->filter(diff_vel);
 
-  const double pid_acc =
-    m_pid_vel.calculate(error_vel_filtered, control_data.dt);
+
+  const double eadrc_acc = calculateControlSignal(error_vel_filtered, control_data.dt);
+  
 
   // Feedforward scaling:
   // This is for the coordinate conversion where feedforward is applied, from Time to Arclength.
   // Details: For accurate control, the feedforward should be calculated in the arclength coordinate
   // system, not in the time coordinate system. Otherwise, even if FF is applied, the vehicle speed
   // deviation will be bigger.
-  constexpr double ff_scale_max = 2.0;  // for safety
-  constexpr double ff_scale_min = 0.5;  // for safety
-  const double ff_scale = std::clamp(
-    std::abs(current_vel) / std::max(std::abs(target_motion.vel), 0.1), ff_scale_min, ff_scale_max);
-  const double ff_acc =
-    control_data.interpolated_traj.points.at(control_data.target_idx).acceleration_mps2 * ff_scale;
+  // constexpr double ff_scale_max = 2.0;  // for safety
+  // constexpr double ff_scale_min = 0.5;  // for safety
+  // const double ff_scale = std::clamp(
+  //   std::abs(current_vel) / std::max(std::abs(target_motion.vel), 0.1), ff_scale_min, ff_scale_max);
+  // const double ff_acc =
+  //   control_data.interpolated_traj.points.at(control_data.target_idx).acceleration_mps2 * ff_scale;
 
-  const double feedback_acc = ff_acc + pid_acc;
+  //const double feedback_acc = ff_acc + pid_acc;
 
-  m_debug_values.setValues(DebugValues::TYPE::ACC_CMD_PID_APPLIED, feedback_acc);
-  m_debug_values.setValues(DebugValues::TYPE::ERROR_VEL_FILTERED, error_vel_filtered);
-  m_debug_values.setValues(DebugValues::TYPE::FF_SCALE, ff_scale);
-  m_debug_values.setValues(DebugValues::TYPE::ACC_CMD_FF, ff_acc);
 
-  return feedback_acc;
+  // m_debug_values.setValues(DebugValues::TYPE::ACC_CMD_PID_APPLIED, feedback_acc);
+  // m_debug_values.setValues(DebugValues::TYPE::ERROR_VEL_FILTERED, error_vel_filtered);
+  // m_debug_values.setValues(DebugValues::TYPE::FF_SCALE, ff_scale);
+  // m_debug_values.setValues(DebugValues::TYPE::ACC_CMD_FF, ff_acc);
+
+  return eadrc_acc;
 }
 
 EadrcLongitudinalController::Motion EadrcLongitudinalController::keepBrakeBeforeStop(
@@ -794,6 +791,60 @@ EadrcLongitudinalController::Motion EadrcLongitudinalController::calcCtrlCmd(
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bool EadrcLongitudinalController::isReady(
+  [[maybe_unused]] const trajectory_follower::InputData & input_data)
+{
+  return true;
+}
 
 trajectory_follower::LongitudinalOutput EadrcLongitudinalController::run(
   trajectory_follower::InputData const & input_data)
