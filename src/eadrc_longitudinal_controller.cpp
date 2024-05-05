@@ -42,6 +42,7 @@ EadrcLongitudinalController::EadrcLongitudinalController(rclcpp::Node & node)
 // parameters for delay compensation
   m_delay_compensation_time = node.declare_parameter<double>("delay_compensation_time");  // [s] 
 
+  p_obserwer = std::make_shared<eadrc_longitudinal_controller::EadrcLongitudinalController>();
 }
 
 void EadrcLongitudinalController::setTrajectory(
@@ -553,6 +554,13 @@ void EadrcLongitudinalController::updateControlState(const ControlData & control
   return;
 }
 
+
+
+
+
+
+
+
 double EadrcLongitudinalController::getTimeUnderControl()
 {
   if (!m_under_control_starting_time) return 0.0;
@@ -561,9 +569,15 @@ double EadrcLongitudinalController::getTimeUnderControl()
 
 double EadrcLongitudinalController::calculateControlSignal(const double error, const double dt)
 {
-  Eigen::RowVector2d stateVector = obserwer->calculateStateOfESO(error, dt, controlSignal);
+  Eigen::RowVector2d stateVector = p_obserwer->getStateVector();
 
-  double controlSignal = 
+  double controlSignal = (stateVector[0]*kp + stateVector[1])*1/b_hat;
+
+  stateVector = p_obserwer->calculateStateOfESO(error, dt, controlSignal);
+
+  p_obserwer->setLastStateVector(stateVector);
+
+  return controlSignal;
 }
 
 double EadrcLongitudinalController::applyVelocityFeedback(const ControlData & control_data)
@@ -789,56 +803,6 @@ EadrcLongitudinalController::Motion EadrcLongitudinalController::calcCtrlCmd(
 
   return filtered_ctrl_cmd;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 bool EadrcLongitudinalController::isReady(
   [[maybe_unused]] const trajectory_follower::InputData & input_data)

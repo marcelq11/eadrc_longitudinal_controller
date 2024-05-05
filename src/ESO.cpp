@@ -55,13 +55,22 @@ namespace eadrc_longitudinal_controller
         I << 1, 0,
              0, 1;
 
-        Eigen::RowVector2d stateVector(2) = (m_A*dt-dt*m_L*m_C+I)*m_lastStateVector+dt*m_B*m_lastControlSignal+dt*m_L*error;
+        Eigen::RowVector2d stateVector(2) = (m_A*dt-dt*m_L*m_C+I)*m_lastStateVector+dt*m_B*controlSignal+dt*m_L*error;
 
-        m_lastControlSignal = controlSignal;
-        m_lastLogitudinalError = error;
-        m_lastStateVector = m_StateVector
+        m_lastStateVector = m_StateVector;
 
         return stateVector;
+    }
+
+    Eigen::RowVector2d getStateVector()
+    {
+        return m_lastStateVector;
+    }
+
+    void setLastStateVector(Eigen::RowVector2d stateVector)
+    {
+        m_lastStateVector[0]=stateVector[0];
+        m_lastStateVector[1]=stateVector[1];
     }
 
 }  // namespace eadrc_longitudinal_controller

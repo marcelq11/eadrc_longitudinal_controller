@@ -66,10 +66,6 @@ class EadrcLongitudinalController : public trajectory_follower::LongitudinalCont
 public: 
   EadrcLongitudinalController();
   
-  void calculateOuterLoopUStar();
-  void calculateInternalLoopCompensationTotalDisturbance();
-  void saturation();
-
 
   bool isReady(const trajectory_follower::InputData & input_data) override;
 
@@ -80,9 +76,7 @@ public:
   double EadrcLongitudinalController::calculateControlSignal(const double error, const double dt);
 
 private:
-  int16_t m_saturationValueUpper;
-  int16_t m_saturationValueLower;
-  ESO* obserwer;
+  std::shared_ptr<eadrc_longitudinal_controller::ESO> p_obserwer;
 
   };
 

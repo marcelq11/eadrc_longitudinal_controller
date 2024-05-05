@@ -8,6 +8,8 @@ class ESO
 public:
     ESO(double dt, double estimatedGainOfSystem, uint32_t bandwidthOfESO);
     Eigen::RowVector2d calculateStateOfESO(double error, double controlSignal);
+    void setLastStateVector(Eigen::RowVector2d stateVector);
+    Eigen::RowVector2d getStateVector();
 
 private:
     Eigen::Matrix2d m_A;
