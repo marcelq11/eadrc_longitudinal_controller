@@ -23,6 +23,8 @@
 #include "diagnostic_updater/diagnostic_updater.hpp"
 #include "eadrc_longitudinal_controller/ESO.hpp"
 #include "eadrc_longitudinal_controller/longitudinal_controller_utils.hpp"
+#include "eadrc_longitudinal_controller/debug_values.hpp"
+#include "eadrc_longitudinal_controller/smooth_stop.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "tf2/utils.h"
 #include "tf2_ros/buffer.h"
@@ -64,7 +66,7 @@ namespace trajectory_follower = ::autoware::motion::control::trajectory_follower
 class EadrcLongitudinalController : public trajectory_follower::LongitudinalControllerBase
 {
 public: 
-  EadrcLongitudinalController();
+  explicit EadrcLongitudinalController(rclcpp::Node & node);
   
 
   bool isReady(const trajectory_follower::InputData & input_data) override;
@@ -78,6 +80,10 @@ public:
 private:
   std::shared_ptr<eadrc_longitudinal_controller::ESO> p_obserwer;
 
+  struct Motion
+  {
+    double vel{0.0};
+    double acc{0.0};
   };
 
   struct StateAfterDelay
@@ -106,30 +112,153 @@ private:
     double dt{0.0};
   };
 
+  rclcpp::node_interfaces::NodeParametersInterface::SharedPtr node_parameters_;
+  rclcpp::Clock::SharedPtr clock_;
+  rclcpp::Logger logger_;
+  // ros variables
+  rclcpp::Publisher<tier4_debug_msgs::msg::Float32MultiArrayStamped>::SharedPtr m_pub_slope;
+  rclcpp::Publisher<tier4_debug_msgs::msg::Float32MultiArrayStamped>::SharedPtr m_pub_debug;
+  rclcpp::Publisher<Marker>::SharedPtr m_pub_stop_reason_marker;
+
+  rclcpp::Node::OnSetParametersCallbackHandle::SharedPtr m_set_param_res;
+  rcl_interfaces::msg::SetParametersResult paramCallback(
+    const std::vector<rclcpp::Parameter> & parameters);
+
   // pointers for ros topic
   nav_msgs::msg::Odometry m_current_kinematic_state;
   geometry_msgs::msg::AccelWithCovarianceStamped m_current_accel;
   autoware_auto_planning_msgs::msg::Trajectory m_trajectory;
   OperationModeState m_current_operation_mode;
 
-  // slope compensation
-  enum class SlopeSource { RAW_PITCH = 0, TRAJECTORY_PITCH, TRAJECTORY_ADAPTIVE };
-  SlopeSource m_slope_source{SlopeSource::RAW_PITCH};
-  double m_adaptive_trajectory_velocity_th;
-  std::shared_ptr<LowpassFilter1d> m_lpf_pitch{nullptr};
-  double m_max_pitch_rad;
-  double m_min_pitch_rad;
+  // vehicle info
+  double m_wheel_base{0.0};
+  double m_vehicle_width{0.0};
+  double m_front_overhang{0.0};
+  bool m_prev_vehicle_is_under_control{false};
+  std::shared_ptr<rclcpp::Time> m_under_control_starting_time{nullptr};
 
-  // debug values
-  DebugValues m_debug_values;
+  // control state
+  enum class ControlState { DRIVE = 0, STOPPING, STOPPED, EMERGENCY };
+  ControlState m_control_state{ControlState::STOPPED};
+  std::string toStr(const ControlState s)
+  {
+    if (s == ControlState::DRIVE) return "DRIVE";
+    if (s == ControlState::STOPPING) return "STOPPING";
+    if (s == ControlState::STOPPED) return "STOPPED";
+    if (s == ControlState::EMERGENCY) return "EMERGENCY";
+    return "UNDEFINED";
+  };
+
+  // control period
+  double m_longitudinal_ctrl_period;
+
+  // delay compensation
+  double m_delay_compensation_time;
+
+  // enable flags
+  bool m_enable_smooth_stop;
+  bool m_enable_overshoot_emergency;
+  bool m_enable_slope_compensation;
+  bool m_enable_large_tracking_error_emergency;
+  bool m_enable_keep_stopped_until_steer_convergence;
+
+  // smooth stop transition
+  struct StateTransitionParams
+  {
+    // drive
+    double drive_state_stop_dist;
+    double drive_state_offset_stop_dist;
+    // stopping
+    double stopping_state_stop_dist;
+    // stop
+    double stopped_state_entry_duration_time;
+    double stopped_state_entry_vel;
+    double stopped_state_entry_acc;
+    // emergency
+    double emergency_state_overshoot_stop_dist;
+    double emergency_state_traj_trans_dev;
+    double emergency_state_traj_rot_dev;
+  };
+  StateTransitionParams m_state_transition_params;
+
+
+  // drive
+  PIDController m_pid_vel;
+  bool m_enable_integration_at_low_speed;
+  double m_current_vel_threshold_pid_integrate;
+  double m_time_threshold_before_pid_integrate;
+  bool m_enable_brake_keeping_before_stop;
+  double m_brake_keeping_acc;
 
   // smooth stop
   SmoothStop m_smooth_stop;
 
-  std::shared_ptr<rclcpp::Time> m_last_running_time{std::make_shared<rclcpp::Time>(clock_->now())};
+  // stop
+  struct StoppedStateParams
+  {
+    double vel;
+    double acc;
+    double jerk;
+  };
+  StoppedStateParams m_stopped_state_params;
+
+  // emergency
+  struct EmergencyStateParams
+  {
+    double vel;
+    double acc;
+    double jerk;
+  };
+  EmergencyStateParams m_emergency_state_params;
+
+  // acceleration limit
+  double m_max_acc;
+  double m_min_acc;
+
+  // jerk limit
+  double m_max_jerk;
+  double m_min_jerk;
+
+  // slope compensation
+  enum class SlopeSource { RAW_PITCH = 0, TRAJECTORY_PITCH, TRAJECTORY_ADAPTIVE };
+  SlopeSource m_slope_source{SlopeSource::RAW_PITCH};
+  double m_adaptive_trajectory_velocity_th;
+
+  double m_max_pitch_rad;
+  double m_min_pitch_rad;
+
+  // ego nearest index search
+  double m_ego_nearest_dist_threshold;
+  double m_ego_nearest_yaw_threshold;
 
   // buffer of send command
   std::vector<autoware_auto_control_msgs::msg::LongitudinalCommand> m_ctrl_cmd_vec;
+
+  // for calculating dt
+  std::shared_ptr<rclcpp::Time> m_prev_control_time{nullptr};
+
+  // shift mode
+  Shift m_prev_shift{Shift::Forward};
+
+  // diff limit
+  Motion m_prev_ctrl_cmd{};      // with slope compensation
+  Motion m_prev_raw_ctrl_cmd{};  // without slope compensation
+  std::vector<std::pair<rclcpp::Time, double>> m_vel_hist;
+
+  // debug values
+  DebugValues m_debug_values;
+
+  std::shared_ptr<rclcpp::Time> m_last_running_time{std::make_shared<rclcpp::Time>(clock_->now())};
+ 
+  // Diagnostic
+
+  diagnostic_updater::Updater diagnostic_updater_;
+  struct DiagnosticData
+  {
+    double trans_deviation{0.0};  // translation deviation between nearest point and current_pose
+    double rot_deviation{0.0};    // rotation deviation between nearest point and current_pose
+  };
+  DiagnosticData m_diagnostic_data;
 
   /**
    * @brief set reference trajectory with received message
@@ -278,13 +407,8 @@ private:
    * @param [in] control_data data for control calculation
    */
   void updateDebugVelAcc(const ControlData & control_data);
-
-
-
   
-
-
-
+};
 }  // namespace eadrc_longitudinal_controller
 
 #endif  // EADRC_LONGITUDINAL_CONTROLLER__EADRC_LONGITUDINAL_CONTROLLER_HPP_

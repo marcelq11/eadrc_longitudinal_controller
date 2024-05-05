@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef PID_LONGITUDINAL_CONTROLLER__LONGITUDINAL_CONTROLLER_UTILS_HPP_
-#define PID_LONGITUDINAL_CONTROLLER__LONGITUDINAL_CONTROLLER_UTILS_HPP_
+#ifndef EADRC_LONGITUDINAL_CONTROLLER__LONGITUDINAL_CONTROLLER_UTILS_HPP_
+#define EADRC_LONGITUDINAL_CONTROLLER__LONGITUDINAL_CONTROLLER_UTILS_HPP_
 
 #include "interpolation/linear_interpolation.hpp"
 #include "interpolation/spherical_linear_interpolation.hpp"
@@ -32,7 +32,7 @@
 #include <limits>
 #include <utility>
 
-namespace autoware::motion::control::pid_longitudinal_controller
+namespace autoware::motion::control::eadrc_longitudinal_controller
 {
 namespace longitudinal_utils
 {
@@ -153,6 +153,6 @@ geometry_msgs::msg::Pose findTrajectoryPoseAfterDistance(
   const autoware_auto_planning_msgs::msg::Trajectory & trajectory);
 
 }  // namespace longitudinal_utils
-}  // namespace autoware::motion::control::pid_longitudinal_controller
+}  // namespace autoware::motion::control::eadrc_longitudinal_controller
 
-#endif  // PID_LONGITUDINAL_CONTROLLER__LONGITUDINAL_CONTROLLER_UTILS_HPP_
+#endif  // EADRC_LONGITUDINAL_CONTROLLER__LONGITUDINAL_CONTROLLER_UTILS_HPP_

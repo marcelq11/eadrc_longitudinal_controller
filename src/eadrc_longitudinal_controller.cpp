@@ -27,10 +27,8 @@
 #include <iostream>
 #include <Eigen/Eigen>
 
-namespace eadrc_longitudinal_controller
+namespace autoware::motion::control::eadrc_longitudinal_controller
 {
-
-
 EadrcLongitudinalController::EadrcLongitudinalController(rclcpp::Node & node)
 : node_parameters_(node.get_node_parameters_interface()),
   clock_(node.get_clock()),
@@ -856,4 +854,4 @@ trajectory_follower::LongitudinalOutput EadrcLongitudinalController::run(
   return output;
 }
 
-}  // namespace eadrc_longitudinal_controller
+}  // autoware::motion::control::namespace eadrc_longitudinal_controller
