@@ -10,9 +10,11 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   include/eadrc_longitudinal_controller/ESO.hpp
   include/eadrc_longitudinal_controller/debug_values.hpp
   include/eadrc_longitudinal_controller/smooth_stop.hpp
+  include/eadrc_longitudinal_controller/lowpass_filter.hpp
   src/eadrc_longitudinal_controller.cpp
   src/ESO.cpp
   src/longitudinal_controller_utils.cpp
+  src/smooth_stop.cpp
   )
 
 ament_auto_add_library(${PROJECT_NAME}_node SHARED

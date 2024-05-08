@@ -20,7 +20,7 @@ private:
     Eigen::RowVector2d m_lastStateVector(2);
     double m_lastControlSignal;
     double m_lastLogitudinalError;
-}
+};
 
 
 
