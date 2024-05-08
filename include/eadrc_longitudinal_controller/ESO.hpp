@@ -6,21 +6,21 @@ namespace eadrc_longitudinal_controller
 class ESO
 {
 public:
-    ESO(double dt, double estimatedGainOfSystem, uint32_t bandwidthOfESO);
-    Eigen::RowVector2d calculateStateOfESO(double error, double controlSignal);
+    ESO(double estimatedGainOfSystem, uint32_t bandwidthOfESO);
+    Eigen::Vector2d calculateStateOfESO(double error, double dt, double controlSignal);
     void setLastStateVector(Eigen::RowVector2d stateVector);
-    Eigen::RowVector2d getStateVector();
+    Eigen::Vector2d getStateVector();
 
 private:
     Eigen::Matrix2d m_A;
-    Eigen::RowVector2d m_B(2);
+    Eigen::Vector2d m_B;
     Eigen::RowVector2d m_C;
-    Eigen::RowVector2d m_L(2);
+    Eigen::Vector2d m_L;
 
-    Eigen::RowVector2d m_lastStateVector(2);
+    Eigen::Vector2d m_lastStateVector;
     double m_lastControlSignal;
     double m_lastLogitudinalError;
-}
+};
 
 
 

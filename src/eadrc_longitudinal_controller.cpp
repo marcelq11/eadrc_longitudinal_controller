@@ -40,7 +40,9 @@ EadrcLongitudinalController::EadrcLongitudinalController(rclcpp::Node & node)
 // parameters for delay compensation
   m_delay_compensation_time = node.declare_parameter<double>("delay_compensation_time");  // [s] 
 
-  p_obserwer = std::make_shared<eadrc_longitudinal_controller::EadrcLongitudinalController>();
+  p_obserwer = std::make_shared<eadrc_longitudinal_controller::EadrcLongitudinalController>(1,15);
+  m_kp=2;
+  m_b_hat=1;
 }
 
 void EadrcLongitudinalController::setTrajectory(
@@ -569,7 +571,7 @@ double EadrcLongitudinalController::calculateControlSignal(const double error, c
 {
   Eigen::RowVector2d stateVector = p_obserwer->getStateVector();
 
-  double controlSignal = (stateVector[0]*kp + stateVector[1])*1/b_hat;
+  double controlSignal = (stateVector[0]*m_kp + stateVector[1])*1/m_b_hat;
 
   stateVector = p_obserwer->calculateStateOfESO(error, dt, controlSignal);
 
@@ -596,10 +598,6 @@ double EadrcLongitudinalController::applyVelocityFeedback(const ControlData & co
   const double time_under_control = getTimeUnderControl();
   const bool vehicle_is_stuck =
     !vehicle_is_moving && time_under_control > m_time_threshold_before_pid_integrate;
-
-  const bool enable_integration =
-    (vehicle_is_moving || (m_enable_integration_at_low_speed && vehicle_is_stuck)) &&
-    is_under_control;
 
   const double error_vel_filtered = m_lpf_vel_error->filter(diff_vel);
 

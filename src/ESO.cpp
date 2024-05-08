@@ -5,8 +5,26 @@
 
 namespace eadrc_longitudinal_controller
 {
+    bool calculateGainsOfLVector(double* p_L1Value, double* p_L2Value, double bandwidthOfESO)
+    {
+        /*
+        choose gains based on multiple pole placement
+        det(lambda*I -H_1) = (labda + omega_0)^2
+        */
 
-    ESO::ESO(double estimatedGainOfSystem, uint32_t bandwidthOfESO)//TODO fill after : preinit
+        if(bandwidthOfESO < static_cast<double>(0.0))
+        {
+            //TODO: exit, negative value of bandwidth of ESO
+            return false;
+        }
+
+        *p_L1Value = 2*bandwidthOfESO;
+        *p_L2Value = bandwidthOfESO*bandwidthOfESO;
+
+        return true;
+    }
+
+    ESO::ESO(double estimatedGainOfSystem, uint32_t bandwidthOfESO)
     {
         m_A << 0, 1,
              0, 0;
@@ -30,44 +48,25 @@ namespace eadrc_longitudinal_controller
         m_lastStateVector << 0, 0;
     }
 
-    bool calculateGainsOfLVector(double* p_L1Value, double* p_L2Value, double bandwidthOfESO)
-    {
-        /*
-        choose gains based on multiple pole placement
-        det(lambda*I -H_1) = (labda + omega_0)^2
-        */
-
-        if(bandwidthOfESO < static_cast<double>(0.0))
-        {
-            //TODO: exit, negative value of bandwidth of ESO
-            return false;
-        }
-
-        *p_L1Value = 2*bandwidthOfESO;
-        *p_L2Value = bandwidthOfESO*bandwidthOfESO;
-
-        return true;
-    }
-
-    Eigen::RowVector2d ESO::calculateStateOfESO(double error, const double dt, double controlSignal)
+    Eigen::Vector2d ESO::calculateStateOfESO(double error, double dt, double controlSignal)
     {
         Eigen::Matrix2d I;
         I << 1, 0,
              0, 1;
 
-        Eigen::RowVector2d stateVector(2) = (m_A*dt-dt*m_L*m_C+I)*m_lastStateVector+dt*m_B*controlSignal+dt*m_L*error;
+        Eigen::Vector2d stateVector = (m_A*dt-dt*m_L*m_C+I)*m_lastStateVector+dt*m_B*controlSignal+dt*m_L*error;
 
-        m_lastStateVector = m_StateVector;
+        m_lastStateVector = stateVector;
 
         return stateVector;
     }
 
-    Eigen::RowVector2d getStateVector()
+    Eigen::Vector2d ESO::getStateVector()
     {
         return m_lastStateVector;
     }
 
-    void setLastStateVector(Eigen::RowVector2d stateVector)
+    void ESO::setLastStateVector(Eigen::RowVector2d stateVector)
     {
         m_lastStateVector[0]=stateVector[0];
         m_lastStateVector[1]=stateVector[1];

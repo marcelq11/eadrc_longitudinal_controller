@@ -75,10 +75,12 @@ public:
     trajectory_follower::InputData const & input_data) override;
 
 
-  double EadrcLongitudinalController::calculateControlSignal(const double error, const double dt);
+  double calculateControlSignal(const double error, const double dt);
 
 private:
   std::shared_ptr<eadrc_longitudinal_controller::ESO> p_obserwer;
+  double m_kp;
+  double m_b_hat;
 
   struct Motion
   {
