@@ -28,7 +28,7 @@
 #include <algorithm>
 #include <limits>
 
-namespace autoware::motion::control::pid_longitudinal_controller
+namespace autoware::motion::control::eadrc_longitudinal_controller
 {
 namespace longitudinal_utils
 {

@@ -25,6 +25,7 @@
 #include "eadrc_longitudinal_controller/longitudinal_controller_utils.hpp"
 #include "eadrc_longitudinal_controller/debug_values.hpp"
 #include "eadrc_longitudinal_controller/smooth_stop.hpp"
+#include "eadrc_longitudinal_controller/lowpass_filter.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "tf2/utils.h"
 #include "tf2_ros/buffer.h"
@@ -185,7 +186,8 @@ private:
 
 
   // drive
-  PIDController m_pid_vel;
+  // PIDController m_pid_vel;
+  std::shared_ptr<LowpassFilter1d> m_lpf_vel_error{nullptr};
   bool m_enable_integration_at_low_speed;
   double m_current_vel_threshold_pid_integrate;
   double m_time_threshold_before_pid_integrate;
@@ -225,7 +227,7 @@ private:
   enum class SlopeSource { RAW_PITCH = 0, TRAJECTORY_PITCH, TRAJECTORY_ADAPTIVE };
   SlopeSource m_slope_source{SlopeSource::RAW_PITCH};
   double m_adaptive_trajectory_velocity_th;
-
+  std::shared_ptr<LowpassFilter1d> m_lpf_pitch{nullptr};
   double m_max_pitch_rad;
   double m_min_pitch_rad;
 

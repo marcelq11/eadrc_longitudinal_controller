@@ -268,7 +268,7 @@ EadrcLongitudinalController::ControlData EadrcLongitudinalController::getControl
   // shift
   control_data.shift = getCurrentShift(control_data);
   if (control_data.shift != m_prev_shift) {
-    m_eadrc_vel.reset();
+    // m_pid_vel.reset();
   }
   m_prev_shift = control_data.shift;
 
@@ -501,7 +501,7 @@ void EadrcLongitudinalController::updateControlState(const ControlData & control
     }
 
     if (departure_condition_from_stopping) {
-      m_pid_vel.reset();
+      // m_epid_vel.reset();
       m_lpf_vel_error->reset(0.0);
       // prevent the car from taking a long time to start to move
       m_prev_ctrl_cmd.acc = std::max(0.0, m_prev_ctrl_cmd.acc);
@@ -525,7 +525,7 @@ void EadrcLongitudinalController::updateControlState(const ControlData & control
       return changeState(ControlState::STOPPED);
     }
     if (departure_condition_from_stopped) {
-      m_pid_vel.reset();
+      // m_pid_vel.reset();
       m_lpf_vel_error->reset(0.0);
       // prevent the car from taking a long time to start to move
       m_prev_ctrl_cmd.acc = std::max(0.0, m_prev_ctrl_cmd.acc);
@@ -591,6 +591,7 @@ double EadrcLongitudinalController::applyVelocityFeedback(const ControlData & co
     control_data.interpolated_traj.points.at(control_data.target_idx).longitudinal_velocity_mps,
     control_data.interpolated_traj.points.at(control_data.target_idx).acceleration_mps2};
   const double diff_vel = (target_motion.vel - current_vel) * vel_sign;
+<<<<<<< HEAD
   const bool is_under_control = m_current_operation_mode.is_autoware_control_enabled &&
                                 m_current_operation_mode.mode == OperationModeState::AUTONOMOUS;
 
@@ -599,6 +600,8 @@ double EadrcLongitudinalController::applyVelocityFeedback(const ControlData & co
   const bool vehicle_is_stuck =
     !vehicle_is_moving && time_under_control > m_time_threshold_before_pid_integrate;
 
+=======
+>>>>>>> 6aa6c5019906a17b66d93a926f1ed12745e69a4a
   const double error_vel_filtered = m_lpf_vel_error->filter(diff_vel);
 
 
