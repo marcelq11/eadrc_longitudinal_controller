@@ -1,6 +1,6 @@
 #include <Eigen/Eigen>
 
-namespace eadrc_longitudinal_controller
+namespace autoware::motion::control::eadrc_longitudinal_controller
 {
 
 class ESO
@@ -24,4 +24,4 @@ private:
 
 
 
-}  // namespace eadrc_longitudinal_controller
+}  // namespace autoware::motion::control::eadrc_longitudinal_controller

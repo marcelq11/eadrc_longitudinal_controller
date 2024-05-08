@@ -40,7 +40,7 @@ EadrcLongitudinalController::EadrcLongitudinalController(rclcpp::Node & node)
 // parameters for delay compensation
   m_delay_compensation_time = node.declare_parameter<double>("delay_compensation_time");  // [s] 
 
-  p_obserwer = std::make_shared<eadrc_longitudinal_controller::EadrcLongitudinalController>(1,15);
+  p_obserwer = std::make_shared<eadrc_longitudinal_controller::ESO>(1,15);
   m_kp=2;
   m_b_hat=1;
 }
@@ -591,17 +591,6 @@ double EadrcLongitudinalController::applyVelocityFeedback(const ControlData & co
     control_data.interpolated_traj.points.at(control_data.target_idx).longitudinal_velocity_mps,
     control_data.interpolated_traj.points.at(control_data.target_idx).acceleration_mps2};
   const double diff_vel = (target_motion.vel - current_vel) * vel_sign;
-<<<<<<< HEAD
-  const bool is_under_control = m_current_operation_mode.is_autoware_control_enabled &&
-                                m_current_operation_mode.mode == OperationModeState::AUTONOMOUS;
-
-  const bool vehicle_is_moving = std::abs(current_vel) > m_current_vel_threshold_pid_integrate;
-  const double time_under_control = getTimeUnderControl();
-  const bool vehicle_is_stuck =
-    !vehicle_is_moving && time_under_control > m_time_threshold_before_pid_integrate;
-
-=======
->>>>>>> 6aa6c5019906a17b66d93a926f1ed12745e69a4a
   const double error_vel_filtered = m_lpf_vel_error->filter(diff_vel);
 
 

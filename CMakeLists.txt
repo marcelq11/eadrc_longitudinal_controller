@@ -17,16 +17,6 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   src/smooth_stop.cpp
   )
 
-ament_auto_add_library(${PROJECT_NAME}_node SHARED
-  include/eadrc_longitudinal_controller/eadrc_longitudinal_controller_node.hpp
-  src/eadrc_longitudinal_controller_node.cpp
-)
-
-rclcpp_components_register_node(${PROJECT_NAME}_node
-  PLUGIN "eadrc_longitudinal_controller::EadrcLongitudinalControllerNode"
-  EXECUTABLE ${PROJECT_NAME}_node_exe
-)
-
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()

@@ -3,7 +3,7 @@
 #include <iostream>
 
 
-namespace eadrc_longitudinal_controller
+namespace autoware::motion::control::eadrc_longitudinal_controller
 {
     bool calculateGainsOfLVector(double* p_L1Value, double* p_L2Value, double bandwidthOfESO)
     {
@@ -72,4 +72,4 @@ namespace eadrc_longitudinal_controller
         m_lastStateVector[1]=stateVector[1];
     }
 
-}  // namespace eadrc_longitudinal_controller
+}  // namespace autoware::motion::control::eadrc_longitudinal_controller
