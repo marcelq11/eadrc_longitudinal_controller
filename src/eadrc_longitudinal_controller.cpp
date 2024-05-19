@@ -594,7 +594,7 @@ double EadrcLongitudinalController::applyVelocityFeedback(const ControlData & co
   const double error_vel_filtered = m_lpf_vel_error->filter(diff_vel);
 
 
-  const double eadrc_acc = calculateControlSignal(error_vel_filtered, control_data.dt);
+  double eadrc_acc = calculateControlSignal(error_vel_filtered, control_data.dt);
   
 
   // Feedforward scaling:
@@ -840,6 +840,7 @@ trajectory_follower::LongitudinalOutput EadrcLongitudinalController::run(
 
   // diagnostic
   diagnostic_updater_.force_update();
+
 
   return output;
 }
