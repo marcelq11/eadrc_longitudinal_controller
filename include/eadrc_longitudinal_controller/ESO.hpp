@@ -1,4 +1,7 @@
-#include <Eigen/Eigen>
+#ifndef ESO_HPP
+#define ESO_HPP
+
+#include <Eigen/Dense>
 
 namespace autoware::motion::control::eadrc_longitudinal_controller
 {
@@ -22,6 +25,6 @@ private:
     double m_lastLogitudinalError;
 };
 
-
-
 }  // namespace autoware::motion::control::eadrc_longitudinal_controller
+
+#endif  // ESO_HPP

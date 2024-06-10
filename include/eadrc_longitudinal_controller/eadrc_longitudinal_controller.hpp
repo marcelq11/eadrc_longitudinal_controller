@@ -57,24 +57,15 @@
 namespace autoware::motion::control::eadrc_longitudinal_controller
 {
 using autoware_adapi_v1_msgs::msg::OperationModeState;
-using tier4_autoware_utils::createDefaultMarker;
-using tier4_autoware_utils::createMarkerColor;
-using tier4_autoware_utils::createMarkerScale;
-using visualization_msgs::msg::Marker;
-
 namespace trajectory_follower = ::autoware::motion::control::trajectory_follower;
 
+/// \class EadrcLongitudinalController
+/// \brief The node class used for generating longitudinal control commands (velocity/acceleration)
 class EadrcLongitudinalController : public trajectory_follower::LongitudinalControllerBase
 {
-public: 
+public:
+  /// \param node Reference to the node used only for the component and parameter initialization.
   explicit EadrcLongitudinalController(rclcpp::Node & node);
-  
-
-  bool isReady(const trajectory_follower::InputData & input_data) override;
-
-  trajectory_follower::LongitudinalOutput run(
-    trajectory_follower::InputData const & input_data) override;
-
 
   double calculateControlSignal(const double error, const double dt);
 
@@ -82,46 +73,31 @@ private:
   std::shared_ptr<eadrc_longitudinal_controller::ESO> p_obserwer;
   double m_kp;
   double m_b_hat;
-
+  
   struct Motion
   {
     double vel{0.0};
     double acc{0.0};
   };
 
-  struct StateAfterDelay
-  {
-    StateAfterDelay(const double velocity, const double acceleration, const double distance)
-    : vel(velocity), acc(acceleration), running_distance(distance)
-    {
-    }
-    double vel{0.0};
-    double acc{0.0};
-    double running_distance{0.0};
-  };
   enum class Shift { Forward = 0, Reverse };
 
   struct ControlData
   {
     bool is_far_from_trajectory{false};
-    autoware_auto_planning_msgs::msg::Trajectory interpolated_traj{};
     size_t nearest_idx{0};  // nearest_idx = 0 when nearest_idx is not found with findNearestIdx
-    size_t target_idx{0};
-    StateAfterDelay state_after_delay{0.0, 0.0, 0.0};
     Motion current_motion{};
     Shift shift{Shift::Forward};  // shift is used only to calculate the sign of pitch compensation
     double stop_dist{0.0};  // signed distance that is positive when car is before the stopline
     double slope_angle{0.0};
     double dt{0.0};
   };
-
   rclcpp::node_interfaces::NodeParametersInterface::SharedPtr node_parameters_;
   rclcpp::Clock::SharedPtr clock_;
   rclcpp::Logger logger_;
   // ros variables
   rclcpp::Publisher<tier4_debug_msgs::msg::Float32MultiArrayStamped>::SharedPtr m_pub_slope;
   rclcpp::Publisher<tier4_debug_msgs::msg::Float32MultiArrayStamped>::SharedPtr m_pub_debug;
-  rclcpp::Publisher<Marker>::SharedPtr m_pub_stop_reason_marker;
 
   rclcpp::Node::OnSetParametersCallbackHandle::SharedPtr m_set_param_res;
   rcl_interfaces::msg::SetParametersResult paramCallback(
@@ -134,9 +110,7 @@ private:
   OperationModeState m_current_operation_mode;
 
   // vehicle info
-  double m_wheel_base{0.0};
-  double m_vehicle_width{0.0};
-  double m_front_overhang{0.0};
+  double m_wheel_base;
   bool m_prev_vehicle_is_under_control{false};
   std::shared_ptr<rclcpp::Time> m_under_control_starting_time{nullptr};
 
@@ -184,9 +158,8 @@ private:
   };
   StateTransitionParams m_state_transition_params;
 
-
   // drive
-  // PIDController m_pid_vel;
+//   PIDController m_pid_vel;
   std::shared_ptr<LowpassFilter1d> m_lpf_vel_error{nullptr};
   bool m_enable_integration_at_low_speed;
   double m_current_vel_threshold_pid_integrate;
@@ -224,9 +197,7 @@ private:
   double m_min_jerk;
 
   // slope compensation
-  enum class SlopeSource { RAW_PITCH = 0, TRAJECTORY_PITCH, TRAJECTORY_ADAPTIVE };
-  SlopeSource m_slope_source{SlopeSource::RAW_PITCH};
-  double m_adaptive_trajectory_velocity_th;
+  bool m_use_traj_for_pitch;
   std::shared_ptr<LowpassFilter1d> m_lpf_pitch{nullptr};
   double m_max_pitch_rad;
   double m_min_pitch_rad;
@@ -253,7 +224,7 @@ private:
   DebugValues m_debug_values;
 
   std::shared_ptr<rclcpp::Time> m_last_running_time{std::make_shared<rclcpp::Time>(clock_->now())};
- 
+
   // Diagnostic
 
   diagnostic_updater::Updater diagnostic_updater_;
@@ -263,12 +234,8 @@ private:
     double rot_deviation{0.0};    // rotation deviation between nearest point and current_pose
   };
   DiagnosticData m_diagnostic_data;
-
-  /**
-   * @brief set reference trajectory with received message
-   * @param [in] msg trajectory message
-   */
-  void setTrajectory(const autoware_auto_planning_msgs::msg::Trajectory & msg);
+  void setupDiagnosticUpdater();
+  void checkControlState(diagnostic_updater::DiagnosticStatusWrapper & stat);
 
   /**
    * @brief set current and previous velocity with received message
@@ -289,50 +256,24 @@ private:
   void setCurrentOperationMode(const OperationModeState & msg);
 
   /**
+   * @brief set reference trajectory with received message
+   * @param [in] msg trajectory message
+   */
+  void setTrajectory(const autoware_auto_planning_msgs::msg::Trajectory & msg);
+
+  bool isReady(const trajectory_follower::InputData & input_data) override;
+
+  /**
+   * @brief compute control command, and publish periodically
+   */
+  trajectory_follower::LongitudinalOutput run(
+    trajectory_follower::InputData const & input_data) override;
+
+  /**
    * @brief calculate data for controllers whose type is ControlData
    * @param [in] current_pose current ego pose
    */
   ControlData getControlData(const geometry_msgs::msg::Pose & current_pose);
-
-  /**
-   * @brief calculate time between current and previous one
-   */
-  double getDt();
-
-  /**
-   * @brief interpolate trajectory point that is nearest to vehicle
-   * @param [in] traj reference trajectory
-   * @param [in] point vehicle position
-   * @param [in] nearest_idx index of the trajectory point nearest to the vehicle position
-   */
-  std::pair<autoware_auto_planning_msgs::msg::TrajectoryPoint, size_t>
-  calcInterpolatedTrajPointAndSegment(
-    const autoware_auto_planning_msgs::msg::Trajectory & traj,
-    const geometry_msgs::msg::Pose & pose) const;
-  
-  /**
-   * @brief calculate predicted velocity after time delay based on past control commands
-   * @param [in] current_motion current velocity and acceleration of the vehicle
-   * @param [in] delay_compensation_time predicted time delay
-   */
-  StateAfterDelay predictedStateAfterDelay(
-    const Motion current_motion, const double delay_compensation_time) const;
-
-
-  /**
-   * @brief calculate direction (forward or backward) that vehicle moves
-   * @param [in] control_data data for control calculation
-   */
-  enum Shift getCurrentShift(const ControlData & control_data) const;
-  
-
-  /**
-   * @brief update variables for debugging about pitch
-   * @param [in] pitch current pitch of the vehicle (filtered)
-   * @param [in] traj_pitch current trajectory pitch
-   * @param [in] raw_pitch current raw pitch of the vehicle (unfiltered)
-   */
-  void updatePitchDebugValues(const double pitch, const double traj_pitch, const double raw_pitch);
 
   /**
    * @brief calculate control command in emergency state
@@ -340,7 +281,21 @@ private:
    */
   Motion calcEmergencyCtrlCmd(const double dt) const;
 
-    /**
+  /**
+   * @brief update control state according to the current situation
+   * @param [in] control_data control data
+   */
+  void updateControlState(const ControlData & control_data);
+
+  /**
+   * @brief calculate control command based on the current control state
+   * @param [in] current_pose current ego pose
+   * @param [in] control_data control data
+   */
+  Motion calcCtrlCmd(
+    const geometry_msgs::msg::Pose & current_pose, const ControlData & control_data);
+
+  /**
    * @brief publish control command
    * @param [in] ctrl_cmd calculated control command to control velocity
    * @param [in] current_vel current velocity of the vehicle
@@ -356,32 +311,20 @@ private:
   void publishDebugData(const Motion & ctrl_cmd, const ControlData & control_data);
 
   /**
-   * @brief update control state according to the current situation
-   * @param [in] control_data control data
+   * @brief calculate time between current and previous one
    */
-  void updateControlState(const ControlData & control_data);
+  double getDt();
 
   /**
-   * @brief calculate control command based on the current control state
-   * @param [in] control_data control data
+   * @brief calculate current velocity and acceleration
    */
-  Motion calcCtrlCmd(const ControlData & control_data);
+  Motion getCurrentMotion() const;
 
   /**
-   * @brief calculate velocity feedback with feed forward and pid controller
-   * @param [in] control_data data for control calculation
+   * @brief calculate direction (forward or backward) that vehicle moves
+   * @param [in] nearest_idx nearest index on trajectory to vehicle
    */
-  double applyVelocityFeedback(const ControlData & control_data);
-
-  double getTimeUnderControl();
-
-  /**
-   * @brief keep target motion acceleration negative before stop
-   * @param [in] traj reference trajectory
-   * @param [in] motion delay compensated target motion
-   */
-  Motion keepBrakeBeforeStop(
-    const ControlData & control_data, const Motion & target_motion, const size_t nearest_idx) const;
+  enum Shift getCurrentShift(const size_t nearest_idx) const;
 
   /**
    * @brief filter acceleration command with limitation of acceleration and jerk, and slope
@@ -406,13 +349,62 @@ private:
   double applySlopeCompensation(const double acc, const double pitch, const Shift shift) const;
 
   /**
+   * @brief keep target motion acceleration negative before stop
+   * @param [in] traj reference trajectory
+   * @param [in] motion delay compensated target motion
+   */
+  Motion keepBrakeBeforeStop(
+    const autoware_auto_planning_msgs::msg::Trajectory & traj, const Motion & target_motion,
+    const size_t nearest_idx) const;
+
+  /**
+   * @brief interpolate trajectory point that is nearest to vehicle
+   * @param [in] traj reference trajectory
+   * @param [in] point vehicle position
+   * @param [in] nearest_idx index of the trajectory point nearest to the vehicle position
+   */
+  autoware_auto_planning_msgs::msg::TrajectoryPoint calcInterpolatedTargetValue(
+    const autoware_auto_planning_msgs::msg::Trajectory & traj,
+    const geometry_msgs::msg::Pose & pose) const;
+
+  /**
+   * @brief calculate predicted velocity after time delay based on past control commands
+   * @param [in] current_motion current velocity and acceleration of the vehicle
+   * @param [in] delay_compensation_time predicted time delay
+   */
+  double predictedVelocityInTargetPoint(
+    const Motion current_motion, const double delay_compensation_time) const;
+
+  /**
+   * @brief calculate velocity feedback with feed forward and pid controller
+   * @param [in] target_motion reference velocity and acceleration. This acceleration will be used
+   * as feed forward.
+   * @param [in] dt time step to use
+   * @param [in] current_vel current velocity of the vehicle
+   */
+  double applyVelocityFeedback(
+    const Motion target_motion, const double dt, const double current_vel, const Shift & shift);
+
+  /**
+   * @brief update variables for debugging about pitch
+   * @param [in] pitch current pitch of the vehicle (filtered)
+   * @param [in] traj_pitch current trajectory pitch
+   * @param [in] raw_pitch current raw pitch of the vehicle (unfiltered)
+   */
+  void updatePitchDebugValues(const double pitch, const double traj_pitch, const double raw_pitch);
+
+  /**
    * @brief update variables for velocity and acceleration
    * @param [in] ctrl_cmd latest calculated control command
+   * @param [in] current_pose current pose of the vehicle
    * @param [in] control_data data for control calculation
    */
-  void updateDebugVelAcc(const ControlData & control_data);
-  
+  void updateDebugVelAcc(
+    const Motion & ctrl_cmd, const geometry_msgs::msg::Pose & current_pose,
+    const ControlData & control_data);
+
+  double getTimeUnderControl();
 };
-}  // namespace eadrc_longitudinal_controller
+}  // namespace autoware::motion::control::eadrc_longitudinal_controller
 
 #endif  // EADRC_LONGITUDINAL_CONTROLLER__EADRC_LONGITUDINAL_CONTROLLER_HPP_
